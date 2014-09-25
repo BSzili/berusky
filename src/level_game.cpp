@@ -28,7 +28,11 @@
 #include "portability.h"
 
 #ifdef LINUX
+#if defined(__MORPHOS__) || defined(__amigaos4__)
+#include <machine/endian.h>
+#else
 #include <endian.h>
+#endif
 #endif // LINUX
 
 #include "berusky.h"

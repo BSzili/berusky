@@ -32,6 +32,11 @@
 #define TOKEN_FALSE1        "no"
 #define TOKEN_FALSE2        "off"
 
+#ifdef __AROS__
+#undef TRUE
+#undef FALSE
+#endif
+
 #ifndef TRUE
 #define TRUE                (1==1)
 #endif

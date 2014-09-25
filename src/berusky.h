@@ -50,11 +50,16 @@ using namespace std;
 
 #ifdef LINUX
 
+#if defined(__AROS__) || defined(__MORPHOS__) || defined(__amigaos4__)
+#include <SDL/SDL.h>
+#define _(string) (string)
+#else
 #include <syslog.h>
 #include <libintl.h>
 #include <SDL/SDL.h>
 
 #define _(string) gettext (string)
+#endif
 
 #elif WINDOWS
 

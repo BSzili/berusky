@@ -38,6 +38,11 @@
 #include <process.h>
 #endif
 
+#if defined(__AROS__) || defined(__MORPHOS__) || defined(__amigaos4__)
+#include <proto/exec.h>
+#include <proto/dos.h>
+#endif
+
 #include "berusky.h"
 #include "berusky_gui.h"
 #include "main.h"
@@ -2672,6 +2677,16 @@ void game_gui::level_load(LEVEL_EVENT_QUEUE *p_queue)
 void game_gui::run_editor(void)
 { 
 #ifdef LINUX
+#if defined(__AROS__) || defined(__MORPHOS__) || defined(__amigaos4__)
+	char command[256];
+
+	snprintf(command, sizeof(command), "%s -e",p_dir->game_binary_get());
+
+	if (SystemTags((STRPTR)command,
+		TAG_END) < 0)
+		//PrintFault(IoErr(), (CONST_STRPTR)"SystemTags failed");
+		bprintf("Error: run_editor failed");
+#else
   int pid = fork();
   if(!pid) {
     bprintf("%s -e",p_dir->game_binary_get());
@@ -2686,6 +2701,7 @@ void game_gui::run_editor(void)
     waitpid(pid,&status,0);
     bprintf("Pid %d done",pid);
   }
+#endif
 #elif WINDOWS
   bprintf("%s -e",p_dir->game_binary_get());  
   int ret = _spawnl( _P_WAIT, p_dir->game_binary_get(),p_dir->game_binary_get(),"-e",NULL);

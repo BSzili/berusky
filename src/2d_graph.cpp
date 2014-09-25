@@ -197,7 +197,11 @@ void surface::create(tpos width, tpos height, bool display_format)
 {
   assert(!p_surf);
 
+#if defined(__MORPHOS__) || defined(__amigaos4__)
+  p_surf = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32,0,0,0,0);
+#else
   p_surf = SDL_CreateRGBSurface(SDL_HWSURFACE, width, height, 32,0,0,0,0);
+#endif
   if(!p_surf) {
     berror("Unable to create surface! (%dx%d)", width, height);
   }
@@ -222,7 +226,11 @@ void surface::copy(class surface *p_src, RECT *p_src_rect)
 
   if(p_src_rect) {
     SDL_PixelFormat *p_format = p_src->p_surf->format;
+#if defined(__MORPHOS__) || defined(__amigaos4__)
+    p_surf = SDL_CreateRGBSurface(SDL_SWSURFACE, p_src_rect->w, p_src_rect->h,
+#else
     p_surf = SDL_CreateRGBSurface(SDL_HWSURFACE, p_src_rect->w, p_src_rect->h,
+#endif
                                   p_format->BitsPerPixel,
                                   p_format->Rmask,
                                   p_format->Gmask,
@@ -234,7 +242,11 @@ void surface::copy(class surface *p_src, RECT *p_src_rect)
     SDL_BlitSurface(p_src->p_surf, p_src_rect, p_surf, NULL);
   }
   else {
+#if defined(__MORPHOS__) || defined(__amigaos4__)
+    p_surf = SDL_ConvertSurface(p_src->p_surf, p_src->p_surf->format, SDL_SWSURFACE);
+#else
     p_surf = SDL_ConvertSurface(p_src->p_surf, p_src->p_surf->format, SDL_HWSURFACE);
+#endif
   }
   assert(p_surf);
 
@@ -884,7 +896,11 @@ void graph_2d::screen_create(int flag, int width, int height, int bpp, int fulls
     exit(0);
   }      
         
+#if defined(__MORPHOS__) || defined(__amigaos4__)
+  sdl_video_flags = flag|SDL_SWSURFACE;
+#else
   sdl_video_flags = flag|SDL_HWSURFACE;
+#endif
   
   graphics_fullscreen = fullscreen;
   if(fullscreen)
@@ -986,6 +1002,9 @@ void graph_2d::fullscreen_toggle(void)
     bprintf("SDL_WM_ToggleFullScreen() failed!");
   }
   else {
+#ifdef __MORPHOS__
+    SDL_UpdateRect(p_screen_surface->surf_get(), 0, 0, 0, 0);
+#endif
     graphics_fullscreen = !graphics_fullscreen;
   }
 }

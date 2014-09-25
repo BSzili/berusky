@@ -29,12 +29,16 @@
   Utility
 */
 #include <stdio.h>
+#if !defined(__AROS__) && !defined(__MORPHOS__) && !defined(__amigaos4__)
 #include <error.h>
+#endif
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+#ifndef __amigaos4__
 #include <fnmatch.h>
+#endif
 
 #include "portability.h"
 
@@ -231,6 +235,9 @@ char * return_path(const char *p_dir, const char *p_file, char *p_buffer, int ma
       strncpy(p_buffer,p_dir,max_lenght-1);
     }
 #ifdef LINUX
+#if defined(__AROS__) || defined(__MORPHOS__) || defined(__amigaos4__)
+    if(strlen(p_dir) && strlen(p_file))
+#endif
     strcat(p_buffer,"/");
 #elif WINDOWS
     strcat(p_buffer,"\\");
@@ -479,10 +486,247 @@ bool dir_create(const char *p_dir)
 #ifdef LINUX
 static const char *p_file_mask;
 
+#ifdef __amigaos4__
+// implementation taken from MikMod
+
+#define	FNM_PATHNAME	(1 << 0)
+#define	FNM_NOESCAPE	(1 << 1)
+#define	FNM_PERIOD	(1 << 2)
+#define	FNM_NOMATCH	1
+#define	FNM_FILE_NAME	FNM_PATHNAME
+#define	FNM_LEADING_DIR	(1 << 3)
+#define	FNM_CASEFOLD	(1 << 4)
+
+/* Match STRING against the filename pattern PATTERN, returning zero if
+   it matches, nonzero if not.  */
+int
+fnmatch (const char *pattern, const char *string, int flags)
+{
+  register const char *p = pattern, *n = string;
+  register char c;
+
+/* Note that this evaluates C many times.  */
+# define FOLD(c) ((flags & FNM_CASEFOLD) && isupper (c) ? tolower (c) : (c))
+
+  while ((c = *p++) != '\0')
+    {
+      c = FOLD (c);
+
+      switch (c)
+	{
+	case '?':
+	  if (*n == '\0')
+	    return FNM_NOMATCH;
+	  else if ((flags & FNM_FILE_NAME) && *n == '/')
+	    return FNM_NOMATCH;
+	  else if ((flags & FNM_PERIOD) && *n == '.' &&
+		   (n == string || ((flags & FNM_FILE_NAME) && n[-1] == '/')))
+	    return FNM_NOMATCH;
+	  break;
+
+	case '\\':
+	  if (!(flags & FNM_NOESCAPE))
+	    {
+	      c = *p++;
+	      if (c == '\0')
+		/* Trailing \ loses.  */
+		return FNM_NOMATCH;
+	      c = FOLD (c);
+	    }
+	  if (FOLD (*n) != c)
+	    return FNM_NOMATCH;
+	  break;
+
+	case '*':
+	  if ((flags & FNM_PERIOD) && *n == '.' &&
+	      (n == string || ((flags & FNM_FILE_NAME) && n[-1] == '/')))
+	    return FNM_NOMATCH;
+
+	  for (c = *p++; c == '?' || c == '*'; c = *p++)
+	    {
+	      if ((flags & FNM_FILE_NAME) && *n == '/')
+		/* A slash does not_ match a wildcard under FNM_FILE_NAME.  */
+		return FNM_NOMATCH;
+	      else if (c == '?')
+		{
+		  /* A ? needs to match one character.  */
+		  if (*n == '\0')
+		    /* There isn't another character; no match.  */
+		    return FNM_NOMATCH;
+		  else
+		    /* One character of the string is consumed in matching
+		       this ? wildcard, so *??? won't match if there are
+		       less than three characters.  */
+		    ++n;
+		}
+	    }
+
+	  if (c == '\0')
+	    return 0;
+
+	  {
+	    char c1 = (!(flags & FNM_NOESCAPE) && c == '\\') ? *p : c;
+	    c1 = FOLD (c1);
+	    for (--p; *n != '\0'; ++n)
+	      if ((c == '[' || FOLD (*n) == c1) &&
+		  fnmatch (p, n, flags & ~FNM_PERIOD) == 0)
+		return 0;
+	    return FNM_NOMATCH;
+	  }
+
+	case '[':
+	  {
+	    /* Nonzero if the sense of the character class is inverted.  */
+	    register int not_;
+
+	    if (*n == '\0')
+	      return FNM_NOMATCH;
+
+	    if ((flags & FNM_PERIOD) && *n == '.' &&
+		(n == string || ((flags & FNM_FILE_NAME) && n[-1] == '/')))
+	      return FNM_NOMATCH;
+
+	    not_ = (*p == '!' || *p == '^');
+	    if (not_)
+	      ++p;
+
+	    c = *p++;
+	    for (;;)
+	      {
+		register char cstart = c, cend = c;
+
+		if (!(flags & FNM_NOESCAPE) && c == '\\')
+		  {
+		    if (*p == '\0')
+		      return FNM_NOMATCH;
+		    cstart = cend = *p++;
+		  }
+
+		cstart = cend = FOLD (cstart);
+
+		if (c == '\0')
+		  /* [ (unterminated) loses.  */
+		  return FNM_NOMATCH;
+
+		c = *p++;
+		c = FOLD (c);
+
+		if ((flags & FNM_FILE_NAME) && c == '/')
+		  /* [/] can never match.  */
+		  return FNM_NOMATCH;
+
+		if (c == '-' && *p != ']')
+		  {
+		    cend = *p++;
+		    if (!(flags & FNM_NOESCAPE) && cend == '\\')
+		      cend = *p++;
+		    if (cend == '\0')
+		      return FNM_NOMATCH;
+		    cend = FOLD (cend);
+
+		    c = *p++;
+		  }
+
+		if (FOLD (*n) >= cstart && FOLD (*n) <= cend)
+		  goto matched;
+
+		if (c == ']')
+		  break;
+	      }
+	    if (!not_)
+	      return FNM_NOMATCH;
+	    break;
+
+	  matched:;
+	    /* Skip the rest of the [...] that already matched.  */
+	    while (c != ']')
+	      {
+		if (c == '\0')
+		  /* [... (unterminated) loses.  */
+		  return FNM_NOMATCH;
+
+		c = *p++;
+		if (!(flags & FNM_NOESCAPE) && c == '\\')
+		  {
+		    if (*p == '\0')
+		      return FNM_NOMATCH;
+		    /* XXX 1003.2d11 is unclear if this is right.  */
+		    ++p;
+		  }
+	      }
+	    if (not_)
+	      return FNM_NOMATCH;
+	  }
+	  break;
+
+	default:
+	  if (c != FOLD (*n))
+	    return FNM_NOMATCH;
+	}
+
+      ++n;
+    }
+
+  if (*n == '\0')
+    return 0;
+
+  if ((flags & FNM_LEADING_DIR) && *n == '/')
+    /* The FNM_LEADING_DIR flag says that "foo*" matches "foobar/frobozz".  */
+    return 0;
+
+  return FNM_NOMATCH;
+
+# undef FOLD
+}
+#endif
+
 static int filter(const struct dirent *file)
 {
   return(!fnmatch(p_file_mask, file->d_name, 0));
 }
+
+#ifdef __AROS__
+// Viewmol Copyright (c) Joerg-R. Hill, October 2003 
+int scandir(const char *dir, struct dirent ***namelist,
+						int (*select)(const struct dirent *),
+						int (*compar)(const struct dirent **, const struct dirent **))
+{
+	DIR *d;
+	struct dirent *entry;
+	register int i=0;
+	size_t entrysize;
+
+	if ((d=opendir(dir)) == NULL)
+		 return(-1);
+
+	*namelist=NULL;
+	while ((entry=readdir(d)) != NULL)
+	{
+		if (select == NULL || (select != NULL && (*select)(entry)))
+		{
+			*namelist=(struct dirent **)realloc((void *)(*namelist),
+								 (size_t)((i+1)*sizeof(struct dirent *)));
+	if (*namelist == NULL) return(-1);
+	entrysize=sizeof(struct dirent)-sizeof(entry->d_name)+strlen(entry->d_name)+1;
+	(*namelist)[i]=(struct dirent *)malloc(entrysize);
+	if ((*namelist)[i] == NULL) return(-1);
+	memcpy((*namelist)[i], entry, entrysize);
+	i++;
+		}
+	}
+	if (closedir(d)) return(-1);
+	if (i == 0) return(-1);
+	if (compar != NULL)
+		qsort((void *)(*namelist), (size_t)i, sizeof(struct dirent *), (int (*)(const void *, const void *))compar);
+		
+	return(i);
+}
+
+int alphasort(const struct dirent **a, const struct dirent **b)
+{
+	return(strcmp((*a)->d_name, (*b)->d_name));
+}
+#endif
 
 int file_list_get(const char *p_dir, const char *p_mask, DIRECTORY_ENTRY **p_list)
 {
@@ -493,7 +737,11 @@ int file_list_get(const char *p_dir, const char *p_mask, DIRECTORY_ENTRY **p_lis
   return_path(p_dir, "", tmp, MAX_FILENAME);
   
   p_file_mask = p_mask;
+#if defined(__MORPHOS__) || defined(__amigaos4__)
+  int c = scandir(tmp, &namelist, (int (*)(struct dirent *))&filter, alphasort);
+#else
   int c = scandir(tmp, &namelist, &filter, alphasort);
+#endif
   if (c < 0) {
     return 0;
   }
@@ -904,6 +1152,9 @@ void user_directory_create(void)
   dir_create(INI_USER_PROFILES);
 
   // Check ~./berusky/berusky.ini
+#if defined(__AROS__) || defined(__MORPHOS__) || defined(__amigaos4__)
+  bprintf(_("ok"));
+#else
   bprintfnl(_("Checking %s/%s..."),INI_USER_DIRECTORY,INI_FILE_NAME);
   if(!file_exists(INI_USER_DIRECTORY,INI_FILE_NAME)) {
     bprintfnl(_("missing, try to copy it from %s..."),INI_FILE_GLOBAL);
@@ -917,5 +1168,6 @@ void user_directory_create(void)
   } else {
     bprintf(_("ok"));
   }
+#endif
   bprintf(" ");
 }

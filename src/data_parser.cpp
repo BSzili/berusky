@@ -123,7 +123,11 @@ int data_parser::records_get(DATA_RECORD *p_records, int record_num)
 
   int akt_rec = 0;
 
+#ifdef __MORPHOS__
+  while(!akt_rec && (p_token = fgets(record, MAX_RECORD_LEN, (FILE *)datafile)) && !feof((FILE *)datafile)) {
+#else
   while(!akt_rec && (p_token = fgets(record, MAX_RECORD_LEN, datafile)) && !feof(datafile)) {
+#endif
     while(p_token && (p_token = token_translate(p_token, &num, &base), num != NO_VALUE) && akt_rec < record_num) {
       p_records->base = base;
       p_records->offset = num - base;

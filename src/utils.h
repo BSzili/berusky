@@ -38,11 +38,23 @@
 #include <stdarg.h>
 #include <string.h>
 #include <limits.h>
+#ifdef __MORPHOS__
+#include <sys/syslimits.h>
+#endif
 
 #include "portability.h"
 
+#ifdef __AROS__
+#undef TRUE
+#undef FALSE
+#endif
+
 #ifdef LINUX
+#if defined(__AROS__) || defined(__MORPHOS__) || defined(__amigaos4__)
+#define syslog(x,y,z,w)
+#else
 #include <syslog.h>
+#endif
 #include <unistd.h>
 
 #endif // LINUX

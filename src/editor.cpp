@@ -29,11 +29,18 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#if !defined(__AROS__) && !defined(__MORPHOS__) && !defined(__amigaos4__)
 #include <error.h>
+#endif
 #include <errno.h>
 #include <stdio.h>
 
 #include "portability.h"
+
+#if defined(__AROS__) || defined(__MORPHOS__) || defined(__amigaos4__)
+#include <proto/exec.h>
+#include <proto/dos.h>
+#endif
 
 #ifdef LINUX
 #include <sys/wait.h>
@@ -1562,6 +1569,16 @@ void editor_gui::editor_run_level(void)
 
   if(level.level_save(filename)) {
 #ifdef LINUX
+#if defined(__AROS__) || defined(__MORPHOS__) || defined(__amigaos4__)
+	char command[256];
+
+	snprintf(command, sizeof(command), "%s -u \"%s\"",p_dir->game_binary_get(),filename);
+
+	if (SystemTags((STRPTR)command,
+		TAG_END) < 0)
+		//PrintFault(IoErr(), (CONST_STRPTR)"SystemTags failed");
+		bprintf("Error: run_editor failed");
+#else
     int pid = fork();
     if(!pid) {
       char level_name[MAX_FILENAME];
@@ -1578,6 +1595,7 @@ void editor_gui::editor_run_level(void)
       waitpid(pid,&status,0);
       bprintf("Pid %d done",pid);
     }
+#endif
 #elif WINDOWS  
     bprintf("Saved as %s",filename);
     char level_name[MAX_FILENAME];

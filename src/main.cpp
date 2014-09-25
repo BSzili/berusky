@@ -26,7 +26,9 @@
  */
 #include "portability.h"
 #ifdef LINUX
+#if !defined(__AROS__) && !defined(__MORPHOS__) && !defined(__amigaos4__)
 #include <gtk/gtk.h>
+#endif
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +41,10 @@
 #include "berusky_gui.h"
 #include "main.h"
 #include "editor.h"
+
+#if defined(__AROS__) || defined(__MORPHOS__) || defined(__amigaos4__)
+#define printf bprintf
+#endif
 
 void graphics_generate(void);
 
@@ -283,7 +289,11 @@ int main(int argc, char *argv[])
   srand(clock());
 
 #ifdef LINUX
+#if defined(__AROS__) || defined(__MORPHOS__) || defined(__amigaos4__)
+  atexit(SDL_Quit);
+#else
   gtk_parse_args(&argc, &argv);
+#endif
 #endif
 
   banner();
@@ -312,7 +322,11 @@ int main(int argc, char *argv[])
     p_garg = argv[2];
   }
   /* Run normal game from menu */
+#if defined(__AROS__) || defined(__MORPHOS__) || defined(__amigaos4__)
+  else if(argc <= 1)
+#else
   else if(argc == 1)
+#endif
   {
     gmode = MENU;
   } 

@@ -42,9 +42,14 @@
 
 #include <assert.h>
 #include <limits.h>
+#ifdef __MORPHOS__
+#include <sys/syslimits.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
+#ifndef __amigaos4__
 #include <memory.h>
+#endif
 #include <ctype.h>
 
 #include "portability.h"

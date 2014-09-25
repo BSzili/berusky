@@ -444,12 +444,21 @@ typedef int anim_handle;
 #define INI_FILE_NAME      "berusky.ini"
 
 #ifdef LINUX
+#if defined(__AROS__) || defined(__MORPHOS__) || defined(__amigaos4__)
+#define INI_USER_DIRECTORY ""
+#define INI_USER_LEVELS    "User"
+#define INI_USER_PROFILES  "Profiles"
+#define INI_FILE_GLOBAL    INI_FILE_NAME
+#define INI_FILE_USER      INI_FILE_NAME
+#define INI_FILE_LOCAL     INI_FILE_NAME
+#else
 #define INI_USER_DIRECTORY "~/.berusky"
 #define INI_USER_LEVELS    "~/.berusky/User"
 #define INI_USER_PROFILES  "~/.berusky/Profiles"
 #define INI_FILE_GLOBAL    "/var/games/berusky/"INI_FILE_NAME
 #define INI_FILE_USER      "~/.berusky/"INI_FILE_NAME
 #define INI_FILE_LOCAL     "./"INI_FILE_NAME
+#endif
 #elif WINDOWS
 #define INI_USER_DIRECTORY "./"
 #define INI_USER_LEVELS    "./"
