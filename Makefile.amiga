@@ -1,0 +1,51 @@
+CXX = g++
+OSTYPE = $(shell uname -s)
+DEBUG ?= 0
+
+CXXFLAGS = -Wall -Wno-write-strings -Wno-reorder
+
+ifeq ($(DEBUG),1)
+	CXXFLAGS += -g
+else
+	CXXFLAGS += -O2
+endif
+
+CXXFLAGS += -Isrc -DVERSION='"1.7"' -DLINUX
+
+LDFLAGS += -lSDL_image -ljpeg -lpng -lz
+LDFLAGS += $(shell sdl-config --libs) 
+#LDFLAGS += -lintl -liconv
+LDFLAGS += -liberty
+
+ifeq ($(OSTYPE), AmigaOS)
+CXXFLAGS += -D__USE_INLINE__ -D__USE_BASETYPE__ -Wno-deprecated-declarations -fsigned-char
+LDFLAGS += -ltiff -ljpeg
+endif
+
+OBJ = \
+	src/2d_graph.o \
+	src/animation.o \
+	src/berusky.o \
+	src/berusky_gui.o \
+	src/data_parser.o \
+	src/data_parser_tables.o \
+	src/editor.o \
+	src/events.o \
+	src/game_logic.o \
+	src/graphics.o \
+	src/gui.o \
+	src/ini.o \
+	src/input.o \
+	src/level.o \
+	src/level_active.o \
+	src/level_changer.o \
+	src/level_game.o \
+	src/main.o \
+	src/profile.o \
+	src/utils.o \
+
+berusky: $(OBJ)
+	$(CXX) -o $@ $(OBJ) $(LDFLAGS)
+
+clean:
+	rm -f $(OBJ)
