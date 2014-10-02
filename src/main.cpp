@@ -43,6 +43,14 @@
 #include "editor.h"
 
 #if defined(__AROS__) || defined(__MORPHOS__) || defined(__amigaos4__)
+#ifdef __amigaos4__
+static const char * __attribute__((used)) stacksize = "$STACK: 102400";
+#else
+int __stack = 102400;
+#endif
+#ifdef __AROS__
+#include "incstack.h"
+#endif
 #define printf bprintf
 #endif
 
